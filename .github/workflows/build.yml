@@ -1,0 +1,61 @@
+name: Build Hermit Tile APK
+
+on:
+  workflow_dispatch:
+  push:
+    branches: [ main ]
+  pull_request:
+    branches: [ main ]
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    
+    steps:
+      # 检出代码
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      # 设置 JDK 17
+      - name: Set up JDK 17
+        uses: actions/setup-java@v4
+        with:
+          java-version: '17'
+          distribution: 'temurin'
+          cache: gradle
+      
+      # 下载 Gradle Wrapper JAR
+      - name: Download Gradle Wrapper JAR
+        run: |
+          mkdir -p gradle/wrapper
+          curl -L -o gradle/wrapper/gradle-wrapper.jar https://github.com/gradle/gradle/raw/master/gradle/wrapper/gradle-wrapper.jar
+      
+      # 授予 gradlew 执行权限
+      - name: Grant execute permission
+        run: chmod +x gradlew
+      
+      # 构建 Debug APK
+      - name: Build Debug APK
+        run: ./gradlew assembleDebug --no-daemon
+      
+      # 上传 APK 到 Artifacts（所有构建都会生成）
+      - name: Upload APK
+        uses: actions/upload-artifact@v4
+        with:
+          name: HermitTile-APK
+          path: app/build/outputs/apk/debug/app-debug.apk
+          retention-days: 30
+      
+      # 运行 Lint 检查
+      - name: Run lint
+        run: ./gradlew lint --no-daemon || true
+      
+      # 上传 lint 报告
+      - name: Upload lint reports
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: lint-reports
+          path: app/build/reports/lint-results.html
+          retention-days: 7
+          if-no-files-found: warn
